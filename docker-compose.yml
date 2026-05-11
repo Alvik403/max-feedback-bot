@@ -1,0 +1,38 @@
+services:
+  complaint-suggestion-bot:
+    build: .
+    container_name: complaint-suggestion-bot
+    restart: unless-stopped
+    ports:
+      - "15000:15000"
+    volumes:
+      - cpz_bot_data:/app/data
+    environment:
+      MAX_BOT_TOKEN: ${MAX_BOT_TOKEN:?set MAX_BOT_TOKEN in .env}
+      # Полный просмотр: MONITOR_SECRET_FULL или по старому MONITOR_SECRET.
+      MONITOR_SECRET: ${MONITOR_SECRET:-}
+      MONITOR_SECRET_FULL: ${MONITOR_SECRET_FULL:-}
+      # Анонимные без ФИО/отдела/модуля в API.
+      MONITOR_SECRET_REDACT: ${MONITOR_SECRET_REDACT:-}
+      MONITOR_HOST: "0.0.0.0"
+      MONITOR_PORT: "15000"
+      DATABASE_PATH: /app/data/bot.sqlite
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - cpz_bot_net
+
+volumes:
+  cpz_bot_data:
+
+networks:
+  cpz_bot_net:
+    driver: bridge
+    ipam:
+      config:
+        # Явная подсеть: автопул Docker у вас исчерпан из‑за других compose‑проектов (172.17–172.31 заняты).
+        - subnet: 10.250.250.0/24

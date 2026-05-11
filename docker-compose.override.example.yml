@@ -1,0 +1,5 @@
+# Переименуйте в docker-compose.override.yml, чтобы включить локальную отладку с TTY.
+services:
+  complaint-suggestion-bot:
+    stdin_open: true
+    tty: true
