@@ -253,7 +253,7 @@ class Storage:
             try:
                 cur = conn.execute(
                     """
-                    SELECT id, kind, text, anonymous, created_at
+                    SELECT id, kind, text, anonymous, created_at, status
                     FROM submissions
                     WHERE user_id = ?
                     ORDER BY id DESC

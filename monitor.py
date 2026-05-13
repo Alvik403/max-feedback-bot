@@ -9,7 +9,8 @@ import logging
 import os
 import threading
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import TYPE_CHECKING, Any, Deque, Dict, List, Optional
 
 from aiohttp import web
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("monitor")
 
 _DEBUG_CAP = 2500
+_MSK_TZ = ZoneInfo("Europe/Moscow")
 
 
 def ticket_followup_keyboard(ticket_id: int) -> Attachment:
@@ -39,7 +41,7 @@ def ticket_followup_keyboard(ticket_id: int) -> Attachment:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    return datetime.now(_MSK_TZ).strftime("%Y-%m-%d %H:%M:%S МСК")
 
 
 class Monitor:
@@ -340,30 +342,36 @@ body {
     radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--complaint) 16%, transparent), transparent 30rem),
     var(--bg);
 }
-.scroll-y {
+.scroll-y,
+textarea.field-thread {
   scrollbar-gutter: stable;
   scrollbar-width: auto;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
-.scroll-y::-webkit-scrollbar { width: 12px; height: 12px; }
-.scroll-y::-webkit-scrollbar-track {
+.scroll-y::-webkit-scrollbar,
+textarea.field-thread::-webkit-scrollbar { width: 12px; height: 12px; }
+.scroll-y::-webkit-scrollbar-track,
+textarea.field-thread::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
   border-radius: 8px;
   margin: 4px 0;
 }
-.scroll-y::-webkit-scrollbar-thumb {
+.scroll-y::-webkit-scrollbar-thumb,
+textarea.field-thread::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   border-radius: 8px;
   border: 3px solid var(--scrollbar-track);
 }
-.scroll-y::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
-.scroll-y::-webkit-scrollbar-corner { background: var(--scrollbar-track); }
+.scroll-y::-webkit-scrollbar-thumb:hover,
+textarea.field-thread::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+.scroll-y::-webkit-scrollbar-corner,
+textarea.field-thread::-webkit-scrollbar-corner { background: var(--scrollbar-track); }
 .top {
   width: 100%; max-width: min(1560px, calc(100vw - 24px)); margin: 0 auto;
   padding: clamp(14px, 2vw, 24px) clamp(12px, 2vw, 20px);
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
 }
-.brand { min-width: 0; }
+.brand { min-width: 0; display: flex; align-items: center; }
 .top h1 { margin: 0; font-size: clamp(1.2rem, 2vw, 1.65rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; }
 .top-actions { display: flex; align-items: center; gap: 0.55rem; flex-shrink: 0; }
 .btn-theme {
@@ -621,22 +629,22 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.68rem;
-  font-weight: 650;
+  font-size: clamp(0.76rem, 1.95vw, 0.855rem);
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.085em;
-  color: var(--muted);
+  letter-spacing: 0.075em;
+  color: color-mix(in srgb, var(--text) 72%, var(--muted));
   margin-bottom: 0.48rem;
   line-height: 1.3;
 }
 .section-label::before {
   content: '';
   flex-shrink: 0;
-  width: 3px;
-  height: 0.95em;
+  width: 4px;
+  height: 1.05em;
   border-radius: 3px;
   background: var(--accent);
-  opacity: 0.88;
+  opacity: 0.95;
 }
 .section-label-history::before { background: color-mix(in srgb, var(--complaint) 78%, var(--accent)); }
 .section-label-note::before { background: var(--accent); }
@@ -683,10 +691,15 @@ body {
 .block { margin: 0.4rem 0; }
 .thread-wrap + .block { margin-top: 0.08rem; }
 .block .section-label { margin-bottom: 0.42rem; }
-textarea { width: 100%; min-height: 62px; padding: 0.56rem 0.68rem; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-family: inherit; font-size: 0.88rem; resize: vertical; outline: none; }
-#note { min-height: 62px; }
-#reply { min-height: 54px; }
-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+textarea.field-thread {
+  width: 100%; min-height: 62px; padding: 0.45rem 0.72rem; border-radius: 12px; border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 88%, var(--surface));
+  color: var(--text); font-family: inherit; font-size: 0.88rem; line-height: 1.42;
+  resize: vertical; outline: none;
+}
+#note.field-thread { min-height: 62px; }
+#reply.field-thread { min-height: 54px; }
+textarea.field-thread:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.45rem; align-items: center; width: 100%; box-sizing: border-box; }
 .actions-reply-with-msg { gap: 0.45rem; }
 .actions-reply-with-msg > .btn { flex-shrink: 0; }
@@ -739,8 +752,31 @@ textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in
   min-height: 12rem;
 }
 @media (max-width: 720px) {
-  .top { align-items: flex-start; flex-direction: column; }
-  .top-actions { width: 100%; justify-content: flex-end; }
+  .top {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .brand { flex: 1 1 auto; min-width: 0; }
+  .top h1 {
+    margin: 0;
+    padding: 0;
+    font-size: clamp(1.05rem, 4.2vw, 1.4rem);
+    line-height: 1.05;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  .top-actions {
+    flex-shrink: 0;
+    width: auto;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    padding-top: 0;
+  }
   .layout { max-width: 100%; padding-inline: 10px; }
   .panel { border-radius: 16px; min-height: 0; }
   .split {
@@ -803,7 +839,8 @@ textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in
 }
 @media (max-width: 480px) {
   body { font-size: 14px; }
-  .top-actions { justify-content: space-between; }
+  .top { padding-block: clamp(12px, 3vw, 18px); }
+  .top-actions { justify-content: flex-end; gap: 0.45rem; }
   .btn-theme { width: 42px; height: 42px; }
   .btn-ghost { padding-inline: 0.72rem; }
   .card { margin-inline: 0.45rem; }
@@ -1042,6 +1079,30 @@ textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in
     return d.innerHTML;
   }
 
+  /** Строки БД в UTC (... UTC); для показа — Europe/Moscow. Сравнения в коде по исходным UTC не трогаем. */
+  function utcStampToMskDisplay(s){
+    if (!s) return '';
+    var t = String(s).trim().replace(/\s*UTC\s*$/i,'').trim();
+    var parts = t.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
+    if (!parts) return String(s).trim();
+    var ms = Date.UTC(+parts[1], +parts[2]-1, +parts[3], +parts[4], +parts[5], +parts[6]);
+    try {
+      var fmt = new Intl.DateTimeFormat('ru-RU', {
+        timeZone: 'Europe/Moscow',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      return fmt.format(new Date(ms)).replace(',', '') + ' МСК';
+    } catch (e) {
+      return String(s).trim();
+    }
+  }
+
   function keyHeaders(){
     var h = { 'Content-Type': 'application/json' };
     var k = localStorage.getItem('cpz_monitor_key') || '';
@@ -1261,7 +1322,7 @@ textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in
       h += '<div class="bubble ' + (adm ? 'admin' : 'user') + '">';
       h += '<div class="who">' + (adm ? '\u041f\u043e\u0434\u0434\u0435\u0440\u0436\u043a\u0430' : '\u0410\u0432\u0442\u043e\u0440') + '</div>';
       h += esc(m.text || '');
-      h += '<div class="when">' + esc(m.created_at || '') + '</div>';
+      h += '<div class="when">' + esc(utcStampToMskDisplay(m.created_at || '')) + '</div>';
       h += '</div>';
     }
     el.innerHTML = h;
@@ -1423,9 +1484,9 @@ textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in
       html += '<div id="detailProf" class="profile-strip" hidden></div>';
     html += '</div>';
     html += '<div class="thread-wrap"><label class="section-label section-label-history">\u0418\u0441\u0442\u043e\u0440\u0438\u044f</label><div class="thread scroll-y" id="thread"></div></div>';
-    html += '<div class="block"><label class="section-label section-label-note" for="note">\u0417\u0430\u043c\u0435\u0442\u043a\u0430</label><textarea id="note">' + esc(note) + '</textarea></div>';
+    html += '<div class="block"><label class="section-label section-label-note" for="note">\u0417\u0430\u043c\u0435\u0442\u043a\u0430</label><textarea id="note" class="scroll-y field-thread">' + esc(note) + '</textarea></div>';
     html += '<div class="actions"><button type="button" class="btn btn-primary" id="saveNote">\u0421\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u044c</button></div>';
-    html += '<div class="block"><label class="section-label section-label-note" for="reply">\u041e\u0442\u0432\u0435\u0442 \u0432 \u0447\u0430\u0442 MAX</label><textarea id="reply" placeholder="\u0422\u0435\u043a\u0441\u0442 \u0443\u0439\u0434\u0451\u0442 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044e\u2026"></textarea></div>';
+    html += '<div class="block"><label class="section-label section-label-note" for="reply">\u041e\u0442\u0432\u0435\u0442 \u0432 \u0447\u0430\u0442 MAX</label><textarea id="reply" class="scroll-y field-thread" placeholder="\u0422\u0435\u043a\u0441\u0442 \u0443\u0439\u0434\u0451\u0442 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044e\u2026"></textarea></div>';
     html += '<div class="actions actions-reply-with-msg"><button type="button" class="btn btn-primary" id="sendReply">\u041e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c</button><div class="msg" id="msg"></div></div>';
     html += '</div>';
     d.innerHTML = html;
