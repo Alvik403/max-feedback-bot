@@ -12,5 +12,6 @@ data/
 .ruff_cache/
 .idea/
 .vscode/
+.cursor/
 *.log
 .DS_Store

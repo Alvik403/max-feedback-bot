@@ -473,24 +473,53 @@ textarea.field-thread::-webkit-scrollbar-corner { background: var(--scrollbar-tr
 .unread-dot[hidden] { display: none !important; }
 .lane-complaint .lane-h {
   color: var(--complaint);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--complaint) 18%, transparent), transparent 60%);
-  border-bottom: 3px solid color-mix(in srgb, var(--complaint) 65%, var(--border));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--complaint) 16%, var(--surface)) 0%,
+    color-mix(in srgb, var(--surface) 78%, transparent) 100%
+  );
+  border-bottom: 2px solid color-mix(in srgb, var(--complaint) 58%, var(--border));
 }
 .lane-proposal .lane-h {
   color: var(--proposal);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--proposal) 16%, transparent), transparent 60%);
-  border-bottom: 3px solid color-mix(in srgb, var(--proposal) 55%, var(--border));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--proposal) 14%, var(--surface)) 0%,
+    color-mix(in srgb, var(--surface) 78%, transparent) 100%
+  );
+  border-bottom: 2px solid color-mix(in srgb, var(--proposal) 52%, var(--border));
 }
-.cnt { font-variant-numeric: tabular-nums; opacity: 0.9; font-weight: 600; background: color-mix(in srgb, var(--text) 8%, transparent); padding: 0.12rem 0.45rem; border-radius: 6px; }
+.lane-complaint .lane-items {
+  background: color-mix(in srgb, var(--complaint) 7%, transparent);
+}
+.lane-proposal .lane-items {
+  background: color-mix(in srgb, var(--proposal) 6%, transparent);
+}
+.cnt {
+  font-variant-numeric: tabular-nums; opacity: 0.92; font-weight: 600;
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+  border: 1px solid var(--border);
+  padding: 0.12rem 0.45rem;
+  border-radius: 8px;
+}
 .lane-items { flex: 1; overflow-y: auto; overflow-x: hidden; max-height: min(72vh, 620px); padding: 0 4px 0.35rem 0; min-height: 200px; }
 .card {
-  margin: 0.5rem 0.65rem; padding: 0.78rem 0.86rem; border-radius: 14px; border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg) 90%, var(--surface)); cursor: pointer;
-  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s, background 0.12s;
+  margin: 0.5rem 0.65rem; padding: 0.78rem 0.86rem; border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 74%, transparent); cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s, background 0.12s;
+  box-shadow: none;
 }
-.card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); box-shadow: 0 8px 22px rgba(0,0,0,0.1); }
-[data-theme="dark"] .card:hover { box-shadow: 0 8px 28px rgba(0,0,0,0.45); }
-.card.sel { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+[data-theme="dark"] .card:hover { box-shadow: none; }
+.card.sel {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  box-shadow: none;
+}
 .card-unread { position: relative; }
 .card-unread:not(.sel)::after {
   content: '';
@@ -501,14 +530,42 @@ textarea.field-thread::-webkit-scrollbar-corner { background: var(--scrollbar-tr
   height: 10px;
   border-radius: 50%;
   background: var(--accent-hi);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
   pointer-events: none;
 }
 .card.closed { opacity: 0.68; }
+.lane-complaint .card:hover {
+  border-color: color-mix(in srgb, var(--complaint) 52%, var(--border));
+}
+.lane-proposal .card:hover {
+  border-color: color-mix(in srgb, var(--proposal) 52%, var(--border));
+}
+.lane-complaint .card.sel {
+  border-color: color-mix(in srgb, var(--complaint) 72%, var(--border));
+  background: color-mix(in srgb, var(--complaint) 11%, var(--surface));
+}
+.lane-proposal .card.sel {
+  border-color: color-mix(in srgb, var(--proposal) 68%, var(--border));
+  background: color-mix(in srgb, var(--proposal) 10%, var(--surface));
+}
 .card-top { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.35rem; }
-.chip { font-size: 0.7rem; font-weight: 650; padding: 0.14rem 0.42rem; border-radius: 6px; }
-.chip-id { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent-hi); }
-.chip-off { background: color-mix(in srgb, var(--muted) 22%, transparent); color: var(--muted); }
+.chip { font-size: 0.7rem; font-weight: 650; padding: 0.14rem 0.42rem; border-radius: 8px; border: 1px solid var(--border); }
+.chip-id {
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+.lane-complaint .chip-id {
+  border-color: color-mix(in srgb, var(--complaint) 38%, var(--border));
+}
+.lane-proposal .chip-id {
+  border-color: color-mix(in srgb, var(--proposal) 38%, var(--border));
+}
+.chip-off {
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+  color: var(--muted);
+  border-color: var(--border);
+}
 .sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.35rem; }
 .preview { font-size: 0.86rem; color: var(--text); opacity: 0.92; margin-top: 0.25rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35; }
 .panel-h-detail {
@@ -619,10 +676,11 @@ textarea.field-thread::-webkit-scrollbar-corner { background: var(--scrollbar-tr
   letter-spacing: 0.01em;
   color: color-mix(in srgb, var(--text) 92%, var(--muted));
   padding: 0.52rem 0.72rem;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--surface) 55%, var(--bg));
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+  border: 1px solid var(--border);
   font-variant-numeric: tabular-nums;
+  box-shadow: none;
 }
 .profile-strip[hidden] { display: none !important; }
 .section-label {
@@ -679,27 +737,42 @@ textarea.field-thread::-webkit-scrollbar-corner { background: var(--scrollbar-tr
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0.45rem 0.35rem;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg) 88%, var(--surface));
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+  box-shadow: none;
 }
-.bubble { max-width: 94%; padding: 0.55rem 0.72rem; border-radius: 14px; font-size: 0.88rem; white-space: pre-wrap; word-break: break-word; }
-.bubble.user { align-self: flex-start; background: color-mix(in srgb, var(--muted) 16%, transparent); margin-right: auto; }
-.bubble.admin { align-self: flex-end; background: color-mix(in srgb, var(--accent) 18%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border)); margin-left: auto; }
+.bubble { max-width: 94%; padding: 0.55rem 0.72rem; border-radius: 10px; font-size: 0.88rem; white-space: pre-wrap; word-break: break-word; border: 1px solid var(--border); }
+.bubble.user {
+  align-self: flex-start;
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+  margin-right: auto;
+}
+.bubble.admin {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  margin-left: auto;
+}
 .bubble .who { font-size: 0.68rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.25rem; opacity: 0.85; }
 .bubble .when { font-size: 0.68rem; color: var(--muted); margin-top: 0.4rem; }
 .block { margin: 0.4rem 0; }
 .thread-wrap + .block { margin-top: 0.08rem; }
 .block .section-label { margin-bottom: 0.42rem; }
 textarea.field-thread {
-  width: 100%; min-height: 62px; padding: 0.45rem 0.72rem; border-radius: 12px; border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg) 88%, var(--surface));
+  width: 100%; min-height: 62px; padding: 0.46rem 0.72rem; border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 74%, transparent);
   color: var(--text); font-family: inherit; font-size: 0.88rem; line-height: 1.42;
   resize: vertical; outline: none;
+  box-shadow: none;
 }
 #note.field-thread { min-height: 62px; }
 #reply.field-thread { min-height: 54px; }
-textarea.field-thread:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+textarea.field-thread:focus {
+  border-color: var(--accent);
+  box-shadow: none;
+}
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.45rem; align-items: center; width: 100%; box-sizing: border-box; }
 .actions-reply-with-msg { gap: 0.45rem; }
 .actions-reply-with-msg > .btn { flex-shrink: 0; }
