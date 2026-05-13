@@ -137,6 +137,22 @@ def _format_dt_ru(created_at: str | None) -> str:
         return created_at.strip()
 
 
+def _format_dt_ticket(created_at: str | None) -> str:
+    """Дата заявки/сообщений в карточке без суффикса «МСК»."""
+    if not created_at:
+        return "—"
+    s = created_at.strip().replace(" UTC", "").strip()
+    try:
+        dt_utc = datetime.strptime(s, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        dt_msk = dt_utc.astimezone(_MSK_TZ)
+        return (
+            f"{dt_msk.day} {_MONTHS_GEN[dt_msk.month - 1]} {dt_msk.year}, "
+            f"{dt_msk.strftime('%H:%M')}"
+        )
+    except ValueError:
+        return created_at.strip()
+
+
 def _user_profile_section(row: dict | None, *, title: str = "Ваш профиль") -> str:
     if not row:
         return f"{title}\n · данные недоступны"
@@ -230,6 +246,19 @@ def _html_br_plain(s: str) -> str:
     return html.escape(s or "").replace("\n", "<br>")
 
 
+def _ticket_block_sep_html() -> str:
+    """Горизонтальный разделитель как в образце сообщения."""
+    return html.escape("━━━━━━━━━━━━")
+
+
+def _ticket_status_line(open_ok: bool, anonymous: bool) -> str:
+    """○/✓ + Открыта/Закрыта · Публичная|Анонимная."""
+    vis = "Анонимная" if anonymous else "Публичная"
+    if open_ok:
+        return f"○ Открыта · {vis}"
+    return f"✓ Закрыта · {vis}"
+
+
 def _split_ticket_opener_chunks(hdr: str, plain_ticket_text: str) -> list[str]:
     """Разбивает длинную заявку на части, не режет HTML-теги шапки."""
     fb = (plain_ticket_text or "").strip()
@@ -251,34 +280,46 @@ def _split_ticket_opener_chunks(hdr: str, plain_ticket_text: str) -> list[str]:
 
 def _user_ticket_detail_html_chunks(sub: dict, thread: list) -> list[str]:
     """Карточка заявки для чата (HTML): шапка, текст, сообщения порциями по лимиту."""
-    kind_ru = (
+    kind_title = (
         "Предложение" if sub.get("kind") == "proposal" else "Обращение / жалоба"
     )
-    vis = "Анонимно" if sub.get("anonymous") else "Публично"
-    status = str(sub.get("status") or "open").strip()
-    st_ru = "Закрыта" if status == "closed" else "Открыта"
-    dt = _format_dt_ru(sub.get("created_at"))
+    anonymous = bool(sub.get("anonymous"))
+    status_raw = str(sub.get("status") or "open").strip()
+    is_open = status_raw != "closed"
+    created_show = html.escape(_format_dt_ticket(sub.get("created_at")))
+    sep_h = _ticket_block_sep_html()
+    status_plain = _ticket_status_line(is_open, anonymous)
     nid = html.escape(str(sub["id"]))
     hdr = (
-        f"<b>Заявка №{nid}</b>\n<i>{html.escape(kind_ru)}</i>\n\n"
-        f"▫️ <b>Статус:</b> {html.escape(st_ru)}\n"
-        f"▫️ <b>Вид подачи:</b> {html.escape(vis)}\n"
-        f"▫️ <b>Создана:</b> {html.escape(dt)}\n\n"
+        f"<b>Заявка №{nid} — {html.escape(kind_title)}</b>\n\n"
+        f"{html.escape(status_plain)}\n"
+        f"{created_show}\n"
+        f"{sep_h}\n"
         f"<b>Текст заявки</b>\n\n"
     )
     if not thread:
-        return [hdr + "<i>Переписка пока пуста.</i>"]
+        return [
+            hdr
+            + "<i>Сообщений пока нет.</i>"
+        ]
 
     first_plain = str(thread[0].get("text") or "").strip()
     opener_segs = _split_ticket_opener_chunks(hdr, first_plain)
 
     rest_msgs = thread[1:]
-    hist_intro = "<b>Переписка</b>\n\n"
+    hist_intro = f"{sep_h}\n<b>Переписка</b>\n\n"
 
     chunks: list[str] = []
 
     if not rest_msgs:
-        return opener_segs
+        tail_segs = list(opener_segs)
+        tail_segs[-1] = (
+            tail_segs[-1].rstrip()
+            + "\n\n"
+            + sep_h
+            + "\n<b>Переписка</b>\n\n<i>Сообщений пока нет.</i>"
+        )
+        return tail_segs
 
     for seg in opener_segs[:-1]:
         chunks.append(seg)
@@ -289,22 +330,25 @@ def _user_ticket_detail_html_chunks(sub: dict, thread: list) -> list[str]:
     for idx, m in enumerate(rest_msgs):
         is_last = idx == n_msg - 1
         role = str(m.get("role") or "")
-        label = "Вы" if role == "user" else "Поддержка"
-        icon = "👤" if role == "user" else "🛟"
-        when = html.escape(_format_dt_ru(m.get("created_at")))
-        badge = html.escape(label)
+        when_esc = html.escape(_format_dt_ticket(m.get("created_at")))
         body = _html_br_plain(str(m.get("text") or "").strip())
-        card = (
-            f"{icon} <u><b>{badge}</b></u>\n"
-            f"<i>{when}</i>\n\n"
-            + (body if body else "<i>—</i>")
-            + "\n"
-        )
+        if role == "user":
+            card = (
+                f"🤖 <i>Вы · {when_esc}</i>\n"
+                + (body if body else "<i>—</i>")
+                + "\n"
+            )
+        else:
+            card = (
+                f"🧑‍💻 <b>Поддержка</b> · <i>{when_esc}</i>\n"
+                + (body if body else "<i>—</i>")
+                + "\n"
+            )
         if not is_last:
             card += "\n"
         if len(buf) + len(card) > frag_limit and buf.strip():
             chunks.append(buf.strip())
-            buf = "<b>Переписка</b> <i>(продолжение)</i>\n\n" + card
+            buf = f"{sep_h}\n<b>Переписка</b> <i>(продолжение)</i>\n\n" + card
         else:
             buf += card
 
@@ -321,7 +365,7 @@ def my_submissions_keyboard(rows: list, *, opened_from_settings: bool) -> str:
         rid = int(r["id"])
         kind_s = str(r.get("kind") or "")
         status = str(r.get("status") or "open").strip()
-        tag = "П" if kind_s == "proposal" else "Ж"
+        tag = "Предложение" if kind_s == "proposal" else "Обращение"
         suff = "" if status == "open" else " ✓"
         label = f"№{rid} · {tag}{suff}"
         if len(label) > 64:
