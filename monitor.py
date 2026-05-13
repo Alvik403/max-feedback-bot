@@ -417,7 +417,6 @@ textarea.field-thread::-webkit-scrollbar-corner { background: var(--scrollbar-tr
   box-shadow: 0 24px 70px rgba(0,0,0,0.28), 0 0 0 1px color-mix(in srgb, var(--text) 5%, transparent);
 }
 .auth-card h2 { margin: 0 0 0.4rem; font-size: 1.25rem; letter-spacing: -0.03em; }
-.auth-card p { margin: 0 0 1rem; color: var(--muted); }
 .auth-card input {
   width: 100%; padding: 0.76rem 0.85rem; border-radius: 12px; border: 1px solid var(--border);
   background: var(--bg); color: var(--text); font: inherit; outline: none;
@@ -925,7 +924,6 @@ textarea.field-thread:focus {
 <div class="auth-screen" id="authScreen" hidden>
   <form class="auth-card" id="authForm">
     <h2>Вход в монитор</h2>
-    <p>Укажите один из паролей: режим без данных автора у анонимных заявок или полный просмотр (ФИО, отдел, модуль).</p>
     <input type="password" id="authPassword" autocomplete="current-password" placeholder="Пароль" aria-label="Пароль"/>
     <button type="submit" class="btn btn-primary">Войти</button>
     <div class="auth-hint" id="authHint"></div>
