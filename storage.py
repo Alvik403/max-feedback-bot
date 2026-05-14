@@ -216,6 +216,48 @@ class Storage:
             finally:
                 conn.close()
 
+    def update_user_profile(
+        self,
+        user_id: int,
+        *,
+        full_name: Optional[str] = None,
+        department: Optional[str] = None,
+        module: Optional[str] = None,
+        default_anonymous: Optional[bool] = None,
+    ) -> bool:
+        """Частичное обновление профиля (None — поле не менять). False, если строки нет."""
+        cols: list[str] = []
+        args: list[Any] = []
+        if full_name is not None:
+            cols.append("full_name = ?")
+            args.append(str(full_name).strip())
+        if department is not None:
+            cols.append("department = ?")
+            args.append(str(department).strip())
+        if module is not None:
+            cols.append("module = ?")
+            args.append(str(module).strip())
+        if default_anonymous is not None:
+            cols.append("default_anonymous = ?")
+            args.append(1 if default_anonymous else 0)
+        if not cols:
+            return True
+        now = _utc_now()
+        cols.append("updated_at = ?")
+        args.append(now)
+        args.append(user_id)
+        with self._lock:
+            conn = self._connect()
+            try:
+                cur = conn.execute(
+                    f"UPDATE users SET {', '.join(cols)} WHERE user_id = ?",
+                    args,
+                )
+                conn.commit()
+                return cur.rowcount > 0
+            finally:
+                conn.close()
+
     def add_submission(
         self,
         user_id: int,
@@ -286,6 +328,26 @@ class Storage:
                     LIMIT ?
                     """,
                     (limit,),
+                )
+                return [dict(r) for r in cur.fetchall()]
+            finally:
+                conn.close()
+
+    def list_users_registry(self, limit: int = 2000) -> List[dict[str, Any]]:
+        """Все профили пользователей для монитора (новые первыми)."""
+        safe_limit = max(1, min(int(limit), 5000))
+        with self._lock:
+            conn = self._connect()
+            try:
+                cur = conn.execute(
+                    """
+                    SELECT user_id, chat_id, full_name, department, module,
+                           default_anonymous, created_at, updated_at
+                    FROM users
+                    ORDER BY datetime(created_at) DESC
+                    LIMIT ?
+                    """,
+                    (safe_limit,),
                 )
                 return [dict(r) for r in cur.fetchall()]
             finally:

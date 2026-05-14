@@ -132,6 +132,91 @@ class Monitor:
                 or "",
             }
 
+        def _user_registry_item(r: dict[str, Any]) -> dict[str, Any]:
+            return {
+                "user_id": r["user_id"],
+                "chat_id": r.get("chat_id"),
+                "full_name": ((r.get("full_name") or "").strip()),
+                "department": ((r.get("department") or "").strip()),
+                "module": ((r.get("module") or "").strip()),
+                "default_anonymous": bool(r.get("default_anonymous")),
+                "created_at": r.get("created_at") or "",
+                "updated_at": r.get("updated_at") or "",
+            }
+
+        async def api_users(request: web.Request) -> web.Response:
+            mode = _auth_mode(request)
+            if mode is None:
+                return _auth_error()
+            if storage is None:
+                return web.json_response({"error": "storage unavailable"}, status=503)
+            rows = await asyncio.to_thread(storage.list_users_registry, 2000)
+            out = [_user_registry_item(r) for r in rows]
+            return web.json_response(
+                {"users": out, "registry_write": mode in ("full", "redact")}
+            )
+
+        async def api_user_patch(request: web.Request) -> web.Response:
+            mode = _auth_mode(request)
+            if mode is None:
+                return _auth_error()
+            if storage is None:
+                return web.json_response({"error": "storage unavailable"}, status=503)
+            try:
+                uid = int(request.match_info["id"])
+            except (KeyError, ValueError):
+                return web.json_response({"error": "bad id"}, status=400)
+            try:
+                body = await request.json()
+            except json.JSONDecodeError:
+                return web.json_response({"error": "json"}, status=400)
+            if not isinstance(body, dict):
+                return web.json_response({"error": "json"}, status=400)
+            patch: dict[str, Any] = {}
+            if "full_name" in body:
+                if not isinstance(body["full_name"], str):
+                    return web.json_response({"error": "full_name"}, status=400)
+                if len(body["full_name"]) > 500:
+                    return web.json_response(
+                        {"error": "full_name too long"}, status=400
+                    )
+                patch["full_name"] = body["full_name"]
+            if "department" in body:
+                if not isinstance(body["department"], str):
+                    return web.json_response({"error": "department"}, status=400)
+                if len(body["department"]) > 500:
+                    return web.json_response(
+                        {"error": "department too long"}, status=400
+                    )
+                patch["department"] = body["department"]
+            if "module" in body:
+                if not isinstance(body["module"], str):
+                    return web.json_response({"error": "module"}, status=400)
+                if len(body["module"]) > 500:
+                    return web.json_response(
+                        {"error": "module too long"}, status=400
+                    )
+                patch["module"] = body["module"]
+            if "default_anonymous" in body:
+                if not isinstance(body["default_anonymous"], bool):
+                    return web.json_response(
+                        {"error": "default_anonymous"}, status=400
+                    )
+                patch["default_anonymous"] = body["default_anonymous"]
+            if not patch:
+                return web.json_response({"error": "empty"}, status=400)
+            ok = await asyncio.to_thread(
+                lambda: storage.update_user_profile(uid, **patch)
+            )
+            if not ok:
+                return web.json_response({"error": "not found"}, status=404)
+            row = await asyncio.to_thread(storage.get_user, uid)
+            if not row:
+                return web.json_response({"error": "not found"}, status=404)
+            return web.json_response(
+                {"ok": True, "user": _user_registry_item(row)}
+            )
+
         async def api_tickets(request: web.Request) -> web.Response:
             mode = _auth_mode(request)
             if mode is None:
@@ -245,6 +330,8 @@ class Monitor:
         app.router.add_get("/health", health)
         app.router.add_get("/healthz", health)
         app.router.add_get("/", index)
+        app.router.add_get("/api/users", api_users)
+        app.router.add_patch("/api/users/{id}", api_user_patch)
         app.router.add_get("/api/tickets", api_tickets)
         app.router.add_get("/api/tickets/{id}/thread", api_ticket_thread)
         app.router.add_patch("/api/tickets/{id}", api_ticket_patch)
@@ -918,6 +1005,223 @@ textarea.field-thread:focus {
   .card { margin-inline: 0.45rem; }
   .detail { padding: 0.82rem; }
 }
+.brand-with-tabs { flex-direction: column; align-items: flex-start; gap: 0.55rem; min-width: 0; }
+@media (min-width: 640px) {
+  .brand-with-tabs { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 0.65rem 1.1rem; }
+}
+.monitor-tabs {
+  display: inline-flex; gap: 3px; padding: 4px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 88%, var(--accent));
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+.monitor-tab {
+  border: none; background: transparent; color: var(--muted); font: inherit;
+  font-size: 0.86rem; font-weight: 650; padding: 0.4rem 0.82rem;
+  border-radius: 9px; cursor: pointer; white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+.monitor-tab:hover { color: var(--text); background: color-mix(in srgb, var(--surface) 72%, transparent); }
+.monitor-tab.active {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+}
+.layout-users { grid-template-columns: 1fr; max-width: min(1560px, calc(100vw - 24px)); }
+.panel-users {
+  display: flex; flex-direction: column;
+  min-height: min(520px, 72vh); max-height: min(88vh, 920px);
+}
+.users-toolbar {
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.55rem 1rem;
+}
+.users-meta { margin-left: auto; font-size: 0.8rem; color: var(--muted); }
+.users-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0.55rem clamp(10px, 1.2vw, 16px) 1.1rem;
+}
+.user-group-cards { padding-top: 0.15rem; }
+.user-group-cards-flat .user-card { margin: 0.42rem 0; }
+.user-card {
+  margin: 0.5rem 0;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, var(--accent));
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--surface) 94%, transparent),
+    color-mix(in srgb, var(--accent) 5%, var(--surface))
+  );
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--text) 5%, transparent),
+    0 8px 28px color-mix(in srgb, var(--bg) 78%, transparent);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.user-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--text) 6%, transparent),
+    0 12px 36px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.user-card-layout { display: flex; gap: 0.75rem; padding: 0.72rem 0.92rem; align-items: flex-start; }
+.user-avatar {
+  flex-shrink: 0;
+  width: 2.45rem;
+  height: 2.45rem;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 1.02rem;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  color: var(--text);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent-hi) 46%, var(--surface)),
+    color-mix(in srgb, var(--accent) 34%, var(--surface))
+  );
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 10%, transparent);
+}
+.user-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.42rem; }
+.user-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+}
+.user-card-title-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
+}
+.user-title {
+  margin: 0;
+  flex: 1 1 min(100%, 12rem);
+  font-size: 0.98rem;
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  line-height: 1.28;
+  word-break: break-word;
+}
+.user-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem 0.45rem;
+}
+.user-id-badge {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  padding: 0.12rem 0.42rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 92%, var(--muted));
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+.user-dl {
+  margin: 0;
+  display: grid;
+  gap: 0;
+  padding: 0.15rem 0;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  overflow: hidden;
+}
+.user-dl-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem 0.65rem;
+  align-items: baseline;
+  padding: 0.42rem 0.55rem;
+  font-size: 0.82rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+.user-dl-row:last-child { border-bottom: none; }
+@media (max-width: 520px) {
+  .user-dl-row {
+    grid-template-columns: 1fr;
+    gap: 0.08rem;
+    padding: 0.48rem 0.55rem;
+  }
+}
+.user-dl-row dt {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 650;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.user-dl-row dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 550;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  word-break: break-word;
+}
+@media (max-width: 520px) {
+  .user-dl-row dd { font-size: 0.88rem; }
+}
+.user-dates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.45rem;
+  margin-top: 0.08rem;
+  padding-top: 0.42rem;
+  border-top: 1px dashed color-mix(in srgb, var(--border) 78%, var(--accent));
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--muted) 88%, var(--text));
+}
+.user-date-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  min-width: 0;
+}
+.user-date-lbl {
+  font-weight: 650;
+  color: color-mix(in srgb, var(--muted) 92%, var(--text));
+  flex-shrink: 0;
+}
+.user-date-val {
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+.user-chip {
+  font-size: 0.62rem;
+  font-weight: 650;
+  padding: 0.14rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--proposal) 42%, var(--border));
+  color: color-mix(in srgb, var(--proposal) 88%, var(--text));
+  background: color-mix(in srgb, var(--proposal) 10%, var(--surface));
+  white-space: nowrap;
+}
+@media (min-width: 640px) {
+  .user-card-title-line {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 0.55rem 1rem;
+  }
+  .user-title {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .user-card-badges {
+    flex-shrink: 0;
+    justify-content: flex-end;
+    margin-left: auto;
+  }
+}
+.btn-sm { padding: 0.35rem 0.78rem; font-size: 0.84rem; border-radius: 10px; }
+[data-theme="dark"] .users-empty { opacity: 0.88; }
 </style>
 </head>
 <body>
@@ -931,14 +1235,19 @@ textarea.field-thread:focus {
 </div>
 <div class="app-shell" id="appShell">
 <div class="top">
-  <div class="brand">
-    <h1>Заявки</h1>
+  <div class="brand brand-with-tabs">
+    <h1 id="pageTitle">Заявки</h1>
+    <div class="monitor-tabs" role="tablist" aria-label="Раздел монитора">
+      <button type="button" class="monitor-tab active" data-view="tickets" id="tabTickets" role="tab" aria-selected="true">Заявки</button>
+      <button type="button" class="monitor-tab" data-view="users" id="tabUsers" role="tab" aria-selected="false">Пользователи</button>
+    </div>
   </div>
   <div class="top-actions">
     <button type="button" class="btn btn-ghost" id="btnAuth" title="Выйти из монитора">Выход</button>
     <button type="button" class="btn-theme" id="btnTheme" title="Тема" aria-label="Сменить тему"><span id="themeIcon"></span></button>
   </div>
 </div>
+<div id="viewTicketsWrap">
 <div class="layout" id="mainLayout">
   <div class="panel">
     <div class="split" id="splitBoard">
@@ -963,6 +1272,20 @@ textarea.field-thread:focus {
   </div>
 </div>
 </div>
+<div id="viewUsersWrap" hidden>
+  <div class="layout layout-users">
+    <div class="panel panel-users" id="panelUsers">
+      <div class="users-toolbar">
+        <button type="button" class="btn btn-ghost btn-sm" id="btnUsersRefresh">Обновить</button>
+        <span class="users-meta" id="usersMeta"></span>
+      </div>
+      <div class="users-scroll scroll-y" id="usersRoot">
+        <div class="empty users-empty">Загрузка…</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
 <script>
 (function(){
   var POLL_MS = 12000;
@@ -972,6 +1295,12 @@ textarea.field-thread:focus {
   var lastThreadTicketId = null;
   var detailDelegationBound = false;
   var MOBILE_MQ = window.matchMedia('(max-width: 720px)');
+  var dashboardView = 'tickets';
+  try {
+    var savedView = localStorage.getItem('cpz_monitor_view');
+    if (savedView === 'users' || savedView === 'tickets') dashboardView = savedView;
+  } catch (eView) {}
+  var usersList = [];
 
   function isMobileUi(){
     return !!(MOBILE_MQ && MOBILE_MQ.matches);
@@ -1137,7 +1466,9 @@ textarea.field-thread:focus {
     if (!v) { showAuth('Введите пароль.'); return; }
     localStorage.setItem('cpz_monitor_key', v);
     hideAuth();
-    fetchTickets();
+    applyDashboardView();
+    if (dashboardView === 'users') fetchUsers();
+    else fetchTickets();
   };
   document.getElementById('btnAuth').onclick = function(){
     localStorage.removeItem('cpz_monitor_key');
@@ -1149,7 +1480,6 @@ textarea.field-thread:focus {
     d.textContent = s == null ? '' : String(s);
     return d.innerHTML;
   }
-
   /** Строки БД в UTC (... UTC); для показа — Europe/Moscow. Сравнения в коде по исходным UTC не трогаем. */
   function utcStampToMskDisplay(s){
     if (!s) return '';
@@ -1168,7 +1498,7 @@ textarea.field-thread:focus {
         second: '2-digit',
         hour12: false
       });
-      return fmt.format(new Date(ms)).replace(',', '') + ' МСК';
+      return fmt.format(new Date(ms)).replace(/\s*,\s*/g, ' ').replace(/\s+/g, ' ').trim();
     } catch (e) {
       return String(s).trim();
     }
@@ -1187,6 +1517,135 @@ textarea.field-thread:focus {
     showAuth(authMessage(status));
     return true;
   }
+
+  function applyDashboardView(){
+    var wT = document.getElementById('viewTicketsWrap');
+    var wU = document.getElementById('viewUsersWrap');
+    var title = document.getElementById('pageTitle');
+    var tTab = document.getElementById('tabTickets');
+    var uTab = document.getElementById('tabUsers');
+    if (wT) wT.hidden = dashboardView !== 'tickets';
+    if (wU) wU.hidden = dashboardView !== 'users';
+    if (title) title.textContent = dashboardView === 'users' ? '\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0438' : '\u0417\u0430\u044f\u0432\u043a\u0438';
+    if (tTab) {
+      tTab.classList.toggle('active', dashboardView === 'tickets');
+      tTab.setAttribute('aria-selected', dashboardView === 'tickets' ? 'true' : 'false');
+    }
+    if (uTab) {
+      uTab.classList.toggle('active', dashboardView === 'users');
+      uTab.setAttribute('aria-selected', dashboardView === 'users' ? 'true' : 'false');
+    }
+  }
+
+  function userInitial(name){
+    var s = String(name || '').trim();
+    if (!s) return '?';
+    var c = s.charAt(0);
+    try { return c.toLocaleUpperCase('ru-RU'); } catch (e1) { return c.toUpperCase(); }
+  }
+
+  function sortUsersList(arr){
+    return arr.slice().sort(function(a, b){
+      var na = String((a && a.full_name) || '').trim().toLocaleLowerCase('ru-RU');
+      var nb = String((b && b.full_name) || '').trim().toLocaleLowerCase('ru-RU');
+      var cmp = na.localeCompare(nb, 'ru');
+      if (cmp !== 0) return cmp;
+      return (parseInt(String(a.user_id), 10) || 0) - (parseInt(String(b.user_id), 10) || 0);
+    });
+  }
+
+  function renderUsers(){
+    var root = document.getElementById('usersRoot');
+    var meta = document.getElementById('usersMeta');
+    if (!root) return;
+
+    var list = usersList.slice();
+    var html = '';
+    var unk = '\u041d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u043e';
+    var dashMark = '\u2014';
+
+    function userCardHtml(u){
+      var uid = u.user_id;
+      var nameDisp = u.full_name ? u.full_name : unk;
+      var letter = esc(userInitial(u.full_name));
+      var reg = utcStampToMskDisplay(u.created_at);
+      var anonOn = !!u.default_anonymous;
+      var h = '';
+      h += '<article class="user-card" data-user-id="' + uid + '">';
+      h += '<div class="user-card-layout">';
+      h += '<div class="user-avatar" aria-hidden="true">' + letter + '</div>';
+      h += '<div class="user-card-body">';
+      h += '<div class="user-card-head">';
+      h += '<div class="user-card-title-line">';
+      h += '<h3 class="user-title">' + esc(nameDisp) + '</h3>';
+      h += '<div class="user-card-badges">';
+      h += '<span class="user-id-badge">id ' + esc(String(uid)) + '</span>';
+      if (anonOn)
+        h += '<span class="user-chip">\u041f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e \u0430\u043d\u043e\u043d\u0438\u043c\u043d\u043e</span>';
+      h += '</div></div></div>';
+      h += '<dl class="user-dl">';
+      h += '<div class="user-dl-row"><dt>\u041f\u043e\u0434\u0440\u0430\u0437\u0434\u0435\u043b\u0435\u043d\u0438\u0435</dt><dd>'
+        + esc(u.department ? u.department : dashMark) + '</dd></div>';
+      h += '<div class="user-dl-row"><dt>\u041c\u043e\u0434\u0443\u043b\u044c</dt><dd>'
+        + esc(u.module ? u.module : dashMark) + '</dd></div>';
+      h += '</dl>';
+      if (reg){
+        h += '<div class="user-dates">';
+        h += '<span class="user-date-item"><span class="user-date-lbl">\u0420\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044f</span>'
+          + '<span class="user-date-val">' + esc(reg) + '</span></span>';
+        h += '</div>';
+      }
+      h += '</div></div></article>';
+      return h;
+    }
+
+    if (!list.length){
+      root.innerHTML = '<div class="empty users-empty">\u041d\u0435\u0442 \u0437\u0430\u043f\u0438\u0441\u0435\u0439 \u0432 \u0440\u0435\u0435\u0441\u0442\u0440\u0435</div>';
+      if (meta) meta.textContent = '';
+      return;
+    }
+
+    if (meta) meta.textContent = '\u0412\u0441\u0435\u0433\u043e: ' + list.length;
+
+    html += '<div class="user-group-cards user-group-cards-flat">';
+    sortUsersList(list).forEach(function(u){ html += userCardHtml(u); });
+    html += '</div>';
+    root.innerHTML = html;
+  }
+
+  function fetchUsers(){
+    var key = localStorage.getItem('cpz_monitor_key') || '';
+    if (!key) {
+      if (document.getElementById('authScreen').hidden) showAuth('\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043f\u0430\u0440\u043e\u043b\u044c \u0430\u0434\u043c\u0438\u043d\u0438\u0441\u0442\u0440\u0430\u0442\u043e\u0440\u0430.');
+      return;
+    }
+    fetch('/api/users', { headers: keyHeaders() })
+      .then(function(r){ return r.json().then(function(j){ return { r: r, j: j }; }); })
+      .then(function(x){
+        if (handleAuthError(x.r.status)) return;
+        if (!x.r.ok) { showAuth(x.j.error || String(x.r.status)); return; }
+        hideAuth();
+        usersList = x.j.users || [];
+        renderUsers();
+      })
+      .catch(function(){ showAuth('\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c\u0441\u044f \u043a \u043c\u043e\u043d\u0438\u0442\u043e\u0440\u0443.'); });
+  }
+  document.getElementById('tabTickets').onclick = function(){
+    if (dashboardView === 'tickets') return;
+    dashboardView = 'tickets';
+    try { localStorage.setItem('cpz_monitor_view', 'tickets'); } catch (eT) {}
+    applyDashboardView();
+    fetchTickets();
+  };
+  document.getElementById('tabUsers').onclick = function(){
+    if (dashboardView === 'users') return;
+    dashboardView = 'users';
+    try { localStorage.setItem('cpz_monitor_view', 'users'); } catch (eU) {}
+    applyDashboardView();
+    fetchUsers();
+  };
+  var btnUsersRefresh = document.getElementById('btnUsersRefresh');
+  if (btnUsersRefresh) btnUsersRefresh.onclick = function(){ fetchUsers(); };
 
   var SEEN_KEY = 'cpz_seen_thread_activity';
 
@@ -1594,8 +2053,14 @@ textarea.field-thread:focus {
       .catch(function(){ showAuth('Не удалось подключиться к монитору.'); });
   }
 
-  fetchTickets();
-  setInterval(fetchTickets, POLL_MS);
+  applyDashboardView();
+  if (dashboardView === 'users') fetchUsers();
+  else fetchTickets();
+  setInterval(function(){
+    if (!localStorage.getItem('cpz_monitor_key')) return;
+    if (dashboardView !== 'tickets') return;
+    fetchTickets();
+  }, POLL_MS);
 })();
 </script>
 </body>
