@@ -3,7 +3,9 @@ services:
     build: .
     container_name: complaint-suggestion-bot
     restart: unless-stopped
-    # HTTP монитор только во внутренней сети compose; снаружи — через nginx :443 (TLS).
+    # HTTP монитор напрямую (отладка / без nginx); снаружи также nginx :443 (TLS).
+    ports:
+      - "15000:15000"
     expose:
       - "15000"
     volumes:

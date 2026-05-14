@@ -984,24 +984,24 @@ textarea.field-thread:focus {
     max-height: min(56vh, 520px);
     min-height: 120px;
   }
-  .layout:not(.mobile-detail) > .panel:last-child {
+  #mainLayout.layout:not(.mobile-detail) > .panel:last-child {
     display: none !important;
   }
-  .layout.mobile-detail > .panel:first-child {
+  #mainLayout.layout.mobile-detail > .panel:first-child {
     display: none !important;
   }
-  .layout.mobile-detail > .panel:last-child {
+  #mainLayout.layout.mobile-detail > .panel:last-child {
     display: flex !important;
     flex-direction: column;
     max-height: none !important;
     min-height: min(92vh, 900px);
   }
-  .layout.mobile-detail > .panel:last-child .detail {
+  #mainLayout.layout.mobile-detail > .panel:last-child .detail {
     flex: 1;
     min-height: 0;
     max-height: min(88vh, 900px);
   }
-  .layout.mobile-detail .btn-mobile-back {
+  #mainLayout.layout.mobile-detail .btn-mobile-back {
     display: inline-flex !important;
   }
   .detail-body > .thread-wrap {
