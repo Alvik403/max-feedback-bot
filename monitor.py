@@ -383,7 +383,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="ru" data-theme="dark">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Заявки</title>
 <style>
 :root[data-theme="dark"] {
@@ -424,10 +424,29 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 body {
   margin: 0; font-family: system-ui, -apple-system, Segoe UI, sans-serif; color: var(--text);
   font-size: 15px; line-height: 1.45; min-height: 100vh;
+  min-height: 100dvh;
   background:
     radial-gradient(circle at 10% -10%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 34rem),
     radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--complaint) 16%, transparent), transparent 30rem),
     var(--bg);
+}
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+#viewTicketsWrap:not([hidden]),
+#viewUsersWrap:not([hidden]) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+#viewTicketsWrap:not([hidden]) > .layout {
+  flex: 1;
+  min-height: 0;
 }
 .scroll-y,
 textarea.field-thread {
@@ -1025,10 +1044,24 @@ textarea.field-thread:focus {
   color: var(--text);
   background: color-mix(in srgb, var(--accent) 22%, var(--surface));
 }
-.layout-users { grid-template-columns: 1fr; max-width: min(1560px, calc(100vw - 24px)); }
+.layout-users {
+  max-width: min(1560px, 100%);
+  width: 100%;
+  margin-inline: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 .panel-users {
-  display: flex; flex-direction: column;
-  min-height: min(520px, 72vh); max-height: min(88vh, 920px);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  max-height: min(88vh, 920px);
+}
+@media (min-width: 721px) {
+  .panel-users { min-height: min(520px, 72vh); }
 }
 .users-toolbar {
   flex-shrink: 0;
@@ -1141,12 +1174,17 @@ textarea.field-thread:focus {
   border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 .user-dl-row:last-child { border-bottom: none; }
-@media (max-width: 520px) {
+@media (max-width: 720px) {
   .user-dl-row {
     grid-template-columns: 1fr;
-    gap: 0.08rem;
+    gap: 0.12rem;
     padding: 0.48rem 0.55rem;
   }
+  .user-dl-row dt {
+    white-space: normal;
+    max-width: 100%;
+  }
+  .user-dl-row dd { font-size: 0.88rem; }
 }
 .user-dl-row dt {
   margin: 0;
@@ -1164,9 +1202,6 @@ textarea.field-thread:focus {
   font-size: 0.84rem;
   line-height: 1.35;
   word-break: break-word;
-}
-@media (max-width: 520px) {
-  .user-dl-row dd { font-size: 0.88rem; }
 }
 .user-dates {
   display: flex;
@@ -1203,6 +1238,95 @@ textarea.field-thread:focus {
   color: color-mix(in srgb, var(--proposal) 88%, var(--text));
   background: color-mix(in srgb, var(--proposal) 10%, var(--surface));
   white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .layout-users {
+    padding-inline: clamp(8px, 3vw, 14px);
+    padding-bottom: max(0.35rem, env(safe-area-inset-bottom, 0px));
+  }
+  #viewUsersWrap:not([hidden]) .panel-users {
+    max-height: none;
+    border-radius: 16px;
+    min-height: 0;
+  }
+  .users-toolbar {
+    padding: 0.58rem 0.72rem;
+    gap: 0.45rem;
+    align-items: center;
+  }
+  .users-meta {
+    margin-left: auto;
+    font-size: 0.76rem;
+    max-width: 58%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+  }
+  #btnUsersRefresh {
+    flex-shrink: 0;
+    touch-action: manipulation;
+  }
+  .users-scroll {
+    padding-inline: clamp(4px, 2vw, 10px);
+    padding-bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 12px));
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+  .user-group-cards-flat .user-card {
+    margin: 0.38rem 0;
+  }
+  .user-card-layout {
+    gap: 0.62rem;
+    padding: 0.62rem 0.72rem;
+    align-items: flex-start;
+  }
+  .user-avatar {
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 10px;
+    font-size: 0.95rem;
+  }
+  .user-card-body { gap: 0.38rem; }
+  .user-card-title-line {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.42rem;
+  }
+  .user-title {
+    flex: none;
+    width: 100%;
+    font-size: 0.94rem;
+    line-height: 1.32;
+  }
+  .user-card-badges {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    margin-left: 0 !important;
+  }
+  .user-chip {
+    white-space: normal;
+    max-width: 100%;
+    text-align: center;
+    line-height: 1.25;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+  }
+  .user-id-badge {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .user-dates {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.28rem;
+  }
+  .user-date-item {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
 }
 @media (min-width: 640px) {
   .user-card-title-line {
