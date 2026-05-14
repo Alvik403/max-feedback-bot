@@ -15,3 +15,4 @@ data/
 .cursor/
 *.log
 .DS_Store
+certs/*.pem
