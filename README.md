@@ -17,6 +17,15 @@
 ```bash
 chmod +x scripts/gen-selfsigned-ip-cert.sh
 ./scripts/gen-selfsigned-ip-cert.sh ВАШ_IP
+# или так же: ./scripts/gen-selfsigned-ip-cert.sh https://ВАШ_IP/
+docker compose up -d --build
+```
+
+Если видите **`permission denied`** к `unix:///var/run/docker.sock` — добавьте пользователя в группу `docker` и перелогиньтесь (или один раз запустите **`sudo docker compose up -d --build`**):
+
+```bash
+sudo usermod -aG docker "$USER"
+# выйти из SSH и зайти снова, затем снова без sudo:
 docker compose up -d --build
 ```
 
